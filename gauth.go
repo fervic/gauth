@@ -1,24 +1,19 @@
 package main
 
 import (
-	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/sha1"
-	"crypto/sha256"
 	"encoding/base32"
 	"encoding/csv"
 	"fmt"
-	"golang.org/x/crypto/ssh/terminal"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"os/user"
 	"path"
 	"strings"
-	"syscall"
 	"time"
+
+	"github.com/fervic/gauth/lib/gpg"
 )
 
 func TimeStamp() (int64, int) {
@@ -70,49 +65,18 @@ func authCodeOrDie(sec string, ts int64) string {
 }
 
 func main() {
-	user, e := user.Current()
-	if e != nil {
-		log.Fatal(e)
+	user, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
 	}
-	cfgPath := path.Join(user.HomeDir, ".config/gauth.csv")
+	cfgPath := path.Join(user.HomeDir, ".config/gauth.csv.gpg")
 
-	cfgContent, e := ioutil.ReadFile(cfgPath)
-	if e != nil {
-		log.Fatal(e)
-	}
-
-	// Support for 'openssl enc -aes-128-cbc -md sha256 -pass pass:'
-	if bytes.Compare(cfgContent[:8], []byte{0x53, 0x61, 0x6c, 0x74, 0x65, 0x64, 0x5f, 0x5f}) == 0 {
-		fmt.Printf("Encryption password: ")
-		passwd, e := terminal.ReadPassword(syscall.Stdin)
-		fmt.Printf("\n")
-		if e != nil {
-			log.Fatal(e)
-		}
-		salt := cfgContent[8:16]
-		rest := cfgContent[16:]
-		salting := sha256.New()
-		salting.Write([]byte(passwd))
-		salting.Write(salt)
-		sum := salting.Sum(nil)
-		key := sum[:16]
-		iv := sum[16:]
-		block, e := aes.NewCipher(key)
-		if e != nil {
-			log.Fatal(e)
-		}
-
-		mode := cipher.NewCBCDecrypter(block, iv)
-		mode.CryptBlocks(rest, rest)
-		// Remove padding
-		i := len(rest) - 1
-		for rest[i] < 16 {
-			i--
-		}
-		cfgContent = rest[:i]
+	cfgContent, err := gpg.DecryptFile(cfgPath)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	cfgReader := csv.NewReader(bytes.NewReader(cfgContent))
+	cfgReader := csv.NewReader(cfgContent)
 	// Unix-style tabular
 	cfgReader.Comma = ':'
 

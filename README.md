@@ -3,10 +3,23 @@
 gauth: replace Google Authenticator
 ===================================
 
+---
+
+This fork replaces OpenSSL password encryption with GnuPG encryption.
+It only works with encrypted files as a way of helping to prevent storing
+plain text files with this sensible information.
+
+
+This README is almost the same as the original one with just enough
+modifications for making it match with how the tool works now.
+
+---
+
+
 Installation
 ------------
 
-With a Go environment already set up, it should be as easy as `go get github.com/pcarrier/gauth`.
+With a Go environment already set up, it should be as easy as `go get github.com/fervic/gauth`.
 
 *Eg,* with `GOPATH=$HOME/go`, it will create a binary `$HOME/go/bin/gauth`.
 
@@ -14,16 +27,24 @@ Usage
 -----
 
 - In web interfaces, pretend you can't read QR codes, get a secret like `hret 3ij7 kaj4 2jzg` instead.
-- Store one secret per line in `~/.config/gauth.csv`, in the format `name:secret`. For example:
+- Store one secret per line in `gauth.csv`, in the format `name:secret`. For example:
 
         AWS:   ABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVWXYZ234567
         Airbnb:abcd efgh ijkl mnop
         Google:a2b3c4d5e6f7g8h9
         Github:234567qrstuvwxyz
 
+- Encrypt the file:
+
+        $ gpg --encrypt --recipient <you> gauth.csv
+
+- Move the file to your home's config folder:
+
+        $ mv gauth.csv.gpg ~/.config
+
 - Restrict access to your user:
 
-        $ chmod 600 ~/.config/gauth.csv
+        $ chmod 600 ~/.config/gauth.csv.gpg
 
 - Run `gauth`. The progress bar indicates how far the next change is.
 
@@ -44,21 +65,13 @@ Usage
 Encryption
 ----------
 
-`gauth` supports password-based encryption of `gauth.csv`. To encrypt, use:
+`gauth` only works with [GnuPG](https://gnupg.org/) encrypted files.
 
-        $ openssl enc -aes-128-cbc -md sha256 -in gauth.csv -out ~/.config/gauth.csv
-        enter aes-128-cbc encryption password:
-        Verifying - enter aes-128-cbc encryption password:
+It calls the `gpg` command line utility, making it a requirement. It is
+suggested to configure a `gpg-agent` so that pass phrases are cached.
 
-`gauth` will then prompt you for that password on every run:
-
-        $ gauth
-        Encryption password: 
-                   prev   curr   next
-        LastPass   915200 479333 408710
-
-Note that this encryption mechanism is far from ideal from a pure security standpoint.
-Please read [OpenSSL's notes on the subject](http://www.openssl.org/docs/crypto/EVP_BytesToKey.html#NOTES).
+The program should launch the pass phrase prompt that is configured for the
+agent.
 
 Compatibility
 -------------
@@ -103,3 +116,5 @@ Thanks to the convenience of a command line utility, my usage of 2-factor authen
 3 to 10 services over a few days.
 
 Clearly a win for security.
+
+:+1: from me (fervic)
